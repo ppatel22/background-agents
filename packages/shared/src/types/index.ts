@@ -7,6 +7,7 @@ export type SessionStatus = "created" | "active" | "completed" | "archived";
 export type SandboxStatus =
   | "pending"
   | "warming"
+  | "spawning"
   | "syncing"
   | "ready"
   | "running"

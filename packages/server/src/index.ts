@@ -278,27 +278,29 @@ app.get("/repos", async (request) => {
   return { repos };
 });
 
-// ─── Settings ───────────────────────────────────────────────────────────────
+// ─── Settings / Model Preferences ───────────────────────────────────────────
 
-app.get("/settings", async () => {
+const handleGetModelPreferences = async () => {
   const modelPrefs = repo.getSetting("model_preferences");
   const enabledModels: ValidModel[] = modelPrefs ? JSON.parse(modelPrefs) : DEFAULT_ENABLED_MODELS;
+  return { enabledModels };
+};
 
-  return {
-    enabledModels,
-  };
-});
-
-app.put("/settings", async (request) => {
+const handlePutModelPreferences = async (request: { body: unknown }) => {
   const body = request.body as { enabledModels?: string[] };
-
   if (body.enabledModels) {
     const valid = body.enabledModels.filter((m) => isValidModel(m));
     repo.setSetting("model_preferences", JSON.stringify(valid));
   }
-
   return { ok: true };
-});
+};
+
+// Both /settings and /model-preferences serve the same data.
+// /model-preferences is the path the SWR fetcher resolves to from the web UI.
+app.get("/settings", handleGetModelPreferences);
+app.put("/settings", handlePutModelPreferences);
+app.get("/model-preferences", handleGetModelPreferences);
+app.put("/model-preferences", handlePutModelPreferences);
 
 // ─── Secrets REST API ───────────────────────────────────────────────────────
 
@@ -364,11 +366,11 @@ app.register(async function wsRoutes(fastify) {
       registerSandboxWs(sessionId, socket);
       console.log(`[ws] Sandbox connected for session ${sessionId}`);
 
-      socket.on("message", async (raw) => {
+      socket.on("message", async (raw: Buffer | ArrayBuffer | Buffer[]) => {
         try {
           const event = JSON.parse(raw.toString()) as SandboxEvent;
           await handleSandboxEvent(sessionId, event);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(`[ws] Error handling sandbox event:`, error);
         }
       });
@@ -378,7 +380,7 @@ app.register(async function wsRoutes(fastify) {
         unregisterSandboxWs(sessionId, socket);
       });
 
-      socket.on("error", (error) => {
+      socket.on("error", (error: Error) => {
         console.error(`[ws] Sandbox WS error for session ${sessionId}:`, error);
         unregisterSandboxWs(sessionId, socket);
       });
@@ -386,7 +388,7 @@ app.register(async function wsRoutes(fastify) {
       // Client connection
       console.log(`[ws] Client connected for session ${sessionId}`);
 
-      socket.on("message", async (raw) => {
+      socket.on("message", async (raw: Buffer | ArrayBuffer | Buffer[]) => {
         try {
           const msg = JSON.parse(raw.toString());
 
@@ -435,7 +437,7 @@ app.register(async function wsRoutes(fastify) {
         unregisterClientWs(sessionId, socket);
       });
 
-      socket.on("error", (error) => {
+      socket.on("error", (error: Error) => {
         console.error(`[ws] Client WS error for session ${sessionId}:`, error);
         unregisterClientWs(sessionId, socket);
       });
