@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { MOBILE_BREAKPOINT } from "./use-media-query";
 
-const SIDEBAR_STORAGE_KEY = "open-inspect-sidebar-open";
+const SIDEBAR_STORAGE_KEY = "background-agents-sidebar-open";
 
 export function useSidebar() {
   const [isOpen, setIsOpen] = useState(true);

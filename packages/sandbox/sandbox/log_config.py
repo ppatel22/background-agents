@@ -1,5 +1,5 @@
 """
-Structured JSON logging for Open-Inspect modal-infra.
+Structured JSON logging for Background Agents sandbox.
 
 Uses Python's standard logging module with a custom JSONFormatter and a thin
 StructuredLogger wrapper for a clean call-site API. Third-party library logs
@@ -56,14 +56,18 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         output: dict[str, Any] = {
             "level": record.levelname.lower(),
-            "service": getattr(record, "_service", "modal-infra"),
+            "service": getattr(record, "_service", "sandbox"),
             "component": getattr(record, "_component", record.name),
             "event": record.getMessage(),
             "ts": int(record.created * 1000),
         }
         # Merge extra fields from record.__dict__ (skip standard attrs)
         for key, value in record.__dict__.items():
-            if key not in _STANDARD_ATTRS and key not in output and not key.startswith("_"):
+            if (
+                key not in _STANDARD_ATTRS
+                and key not in output
+                and not key.startswith("_")
+            ):
                 output[key] = value
         # Extract exception info
         if record.exc_info and record.exc_info[1]:
@@ -102,7 +106,7 @@ class StructuredLogger:
     def __init__(
         self,
         component: str,
-        service: str = "modal-infra",
+        service: str = "sandbox",
         context: dict[str, Any] | None = None,
     ):
         self._component = component

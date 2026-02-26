@@ -8,7 +8,7 @@ cloning is needed.
 
 Responsibilities:
 1. Verify workspace is a valid git repo
-2. Run repo setup script (if .openinspect/setup.sh exists)
+2. Run repo setup script (if .background-agents/setup.sh exists)
 3. Start OpenCode server
 4. Start bridge process for control plane communication
 5. Monitor processes and restart on crash
@@ -43,7 +43,7 @@ class SandboxSupervisor:
     MAX_RESTARTS = 5
     BACKOFF_BASE = 2.0
     BACKOFF_MAX = 60.0
-    SETUP_SCRIPT_PATH = ".openinspect/setup.sh"
+    SETUP_SCRIPT_PATH = ".background-agents/setup.sh"
     DEFAULT_SETUP_TIMEOUT_SECONDS = 300
 
     def __init__(self):
@@ -80,7 +80,7 @@ class SandboxSupervisor:
         return True
 
     async def run_setup_script(self) -> bool | None:
-        """Run .openinspect/setup.sh if it exists."""
+        """Run .background-agents/setup.sh if it exists."""
         setup_path = self.workspace_path / self.SETUP_SCRIPT_PATH
         if not setup_path.exists():
             return None
