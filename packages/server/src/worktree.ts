@@ -65,8 +65,9 @@ export class WorktreeManager {
       }
     }
 
-    // Symlink gitignored config files (like the setup-worktree.sh pattern)
-    await this.symlinkGitignoredFiles(repoPath, worktreePath);
+    // Copy gitignored config files (like the setup-worktree.sh pattern).
+    // Uses copies instead of symlinks so Docker bind mounts work correctly.
+    await this.copyGitignoredFiles(repoPath, worktreePath);
 
     return worktreePath;
   }
@@ -142,10 +143,15 @@ export class WorktreeManager {
   }
 
   /**
-   * Symlink gitignored files from main repo to worktree.
+   * Copy gitignored files from main repo to worktree.
+   *
+   * Uses copies instead of symlinks so that Docker bind mounts work correctly —
+   * symlinks pointing outside the mounted directory would be broken inside the
+   * container. Copies also give each session an isolated snapshot of secrets.
+   *
    * Mirrors the pattern from cia/scripts/setup-worktree.sh.
    */
-  private async symlinkGitignoredFiles(repoPath: string, worktreePath: string): Promise<void> {
+  private async copyGitignoredFiles(repoPath: string, worktreePath: string): Promise<void> {
     try {
       const entries = fs.readdirSync(repoPath);
       for (const entry of entries) {
@@ -159,18 +165,18 @@ export class WorktreeManager {
         // Check if the file is gitignored
         try {
           await exec("git", ["check-ignore", "-q", entry], { cwd: repoPath });
-          // If check-ignore returns 0, the file is ignored — symlink it
+          // If check-ignore returns 0, the file is ignored — copy it
           const target = path.join(worktreePath, entry);
           if (!fs.existsSync(target)) {
-            fs.symlinkSync(fullPath, target);
-            console.log(`[worktree] Symlinked: ${entry}`);
+            fs.copyFileSync(fullPath, target);
+            console.log(`[worktree] Copied: ${entry}`);
           }
         } catch {
           // Not gitignored, skip
         }
       }
     } catch (error) {
-      console.warn("[worktree] Failed to symlink gitignored files:", error);
+      console.warn("[worktree] Failed to copy gitignored files:", error);
     }
   }
 
