@@ -70,12 +70,19 @@ export class DockerManager {
       // Container doesn't exist, continue
     }
 
+    // Assign a random port for the session's dev server (inside the container).
+    // Range 4000-9999 to stay well clear of common host ports.
+    const devPort = 4000 + Math.floor(Math.random() * 6000);
+
     // Build environment variables for the container
     const containerEnv: string[] = [
       `SANDBOX_ID=${sessionId}`,
       `SESSION_ID=${sessionId}`,
       `CONTROL_PLANE_URL=ws://host.docker.internal:${serverPort}`,
       `CONTROL_PLANE_WS_URL=ws://host.docker.internal:${serverPort}/sessions/${sessionId}/ws?type=sandbox`,
+      // Per-session dev server port — agents should use this for `npm run dev`
+      `DEV_PORT=${devPort}`,
+      `PORT=${devPort}`,
     ];
 
     // Pass through LLM API keys from host .env

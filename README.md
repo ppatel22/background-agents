@@ -43,7 +43,7 @@ This will:
 2. Build the shared types package
 3. Build the sandbox Docker image (first run takes a few minutes)
 4. Start the API server on **http://localhost:8787**
-5. Start the Next.js web UI on **http://localhost:3000**
+5. Start the Next.js web UI on **http://localhost:3111**
 
 ## Architecture
 
@@ -51,7 +51,7 @@ This will:
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
 │   Web UI        │────▶│   API Server     │────▶│  Docker Sandbox     │
 │   (Next.js)     │ WS  │   (Fastify)      │ WS  │  (OpenCode + Bridge)│
-│   :3000         │◀────│   :8787          │◀────│                     │
+│   :3111         │◀────│   :8787          │◀────│                     │
 └─────────────────┘     └──────────────────┘     └─────────────────────┘
                               │
                         ┌─────┴─────┐

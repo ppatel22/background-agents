@@ -8,7 +8,7 @@ set -euo pipefail
 #   1. Builds the shared package
 #   2. Builds the sandbox Docker image (if needed)
 #   3. Starts the API server (port 8787)
-#   4. Starts the Next.js dev server (port 3000)
+#   4. Starts the Next.js dev server (port 3111)
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
@@ -74,7 +74,7 @@ echo ""
 
 echo -e "${GREEN}Starting servers...${NC}"
 echo "  API server:  http://localhost:8787"
-echo "  Web UI:      http://localhost:3000"
+echo "  Web UI:      http://localhost:3111"
 echo ""
 
 # Run both in parallel, kill both on Ctrl+C
