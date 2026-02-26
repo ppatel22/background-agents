@@ -25,6 +25,37 @@ const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const HEARTBEAT_CHECK_INTERVAL_MS = 30_000;
 const SERVER_PORT = parseInt(process.env.PORT || "8787", 10);
 
+// ─── Host git identity ──────────────────────────────────────────────────────
+
+let cachedGitIdentity: { name: string | null; email: string | null } | null = null;
+
+async function getHostGitIdentity(): Promise<{ name: string | null; email: string | null }> {
+  if (cachedGitIdentity) return cachedGitIdentity;
+
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const exec = promisify(execFile);
+
+  let name: string | null = null;
+  let email: string | null = null;
+
+  try {
+    const { stdout: n } = await exec("git", ["config", "--global", "user.name"]);
+    name = n.trim() || null;
+  } catch {
+    // Not configured
+  }
+  try {
+    const { stdout: e } = await exec("git", ["config", "--global", "user.email"]);
+    email = e.trim() || null;
+  } catch {
+    // Not configured
+  }
+
+  cachedGitIdentity = { name, email };
+  return cachedGitIdentity;
+}
+
 // ─── Connection registry ────────────────────────────────────────────────────
 
 interface SessionConnections {
@@ -93,7 +124,7 @@ export function unregisterSandboxWs(sessionId: string, ws: WebSocket): void {
 }
 
 function hasSandboxWs(sessionId: string): boolean {
-  return connections.get(sessionId)?.sandbox !== null;
+  return connections.get(sessionId)?.sandbox != null;
 }
 
 // ─── Broadcasting ───────────────────────────────────────────────────────────
@@ -249,6 +280,9 @@ async function processMessageQueue(sessionId: string): Promise<void> {
   const model = message.model || session?.model || "anthropic/claude-sonnet-4-6";
   const reasoningEffort = message.reasoning_effort || session?.reasoning_effort || undefined;
 
+  // Resolve host git identity so commits are attributed correctly
+  const gitAuthor = await getHostGitIdentity();
+
   // Send prompt to sandbox
   const sent = sendToSandbox(sessionId, {
     type: "prompt",
@@ -258,8 +292,8 @@ async function processMessageQueue(sessionId: string): Promise<void> {
     reasoningEffort,
     author: {
       userId: "local-user",
-      scmName: null,
-      scmEmail: null,
+      scmName: gitAuthor.name,
+      scmEmail: gitAuthor.email,
     },
     ...(message.attachments ? { attachments: JSON.parse(message.attachments) } : {}),
   });
@@ -312,15 +346,21 @@ async function spawnSandbox(sessionId: string): Promise<void> {
       session.base_branch
     );
 
+    // Resolve secrets (global + repo-scoped) to inject as env vars
+    const repoScope = `repo:${session.repo_name}`;
+    const secrets = repo.getResolvedSecrets(repoScope);
+
     // Create Docker container
     const { containerId } = await dockerManager.createSandbox({
       sessionId,
       worktreePath,
       serverPort: SERVER_PORT,
+      env: secrets,
     });
 
     repo.updateSessionContainer(sessionId, containerId, worktreePath);
-    repo.updateSessionSandboxStatus(sessionId, "ready");
+    // Status stays "spawning" — the bridge will send a "ready" event once
+    // the OpenCode server is healthy and the WebSocket is connected.
     repo.resetSpawnFailures(sessionId);
     repo.updateSessionSpawnError(sessionId, null);
 

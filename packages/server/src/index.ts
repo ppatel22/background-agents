@@ -100,7 +100,7 @@ app.get("/sessions", async (request) => {
   };
 });
 
-app.post("/sessions", async (request) => {
+app.post("/sessions", async (request, reply) => {
   const body = request.body as {
     repoPath: string;
     title?: string;
@@ -109,7 +109,21 @@ app.post("/sessions", async (request) => {
   };
 
   if (!body.repoPath) {
-    return { error: "repoPath is required" };
+    return reply.status(400).send({ error: "repoPath is required" });
+  }
+
+  // Validate the repo path exists and is a git repository
+  try {
+    const fs = await import("node:fs");
+    if (!fs.existsSync(body.repoPath)) {
+      return reply.status(400).send({ error: `Path does not exist: ${body.repoPath}` });
+    }
+    const gitPath = path.join(body.repoPath, ".git");
+    if (!fs.existsSync(gitPath)) {
+      return reply.status(400).send({ error: `Not a git repository: ${body.repoPath}` });
+    }
+  } catch {
+    return reply.status(400).send({ error: `Cannot access path: ${body.repoPath}` });
   }
 
   const repoName = path.basename(body.repoPath);

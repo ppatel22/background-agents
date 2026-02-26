@@ -1373,8 +1373,9 @@ class AgentBridge:
             mode="push_spec",
         )
 
-        repo_dirs = list(self.repo_path.glob("*/.git"))
-        if not repo_dirs:
+        # The workspace IS the git worktree — .git is directly in repo_path
+        git_marker = self.repo_path / ".git"
+        if not git_marker.exists():
             self.log.warn("git.push_error", reason="no_repository")
             await self._send_event(
                 {
@@ -1384,7 +1385,7 @@ class AgentBridge:
             )
             return
 
-        repo_dir = repo_dirs[0].parent
+        repo_dir = self.repo_path
 
         try:
             if not push_spec:
@@ -1480,12 +1481,13 @@ class AgentBridge:
             "git.identity_configure", git_name=user.name, git_email=user.email
         )
 
-        repo_dirs = list(self.repo_path.glob("*/.git"))
-        if not repo_dirs:
+        # The workspace IS the git worktree — .git is directly in repo_path
+        git_marker = self.repo_path / ".git"
+        if not git_marker.exists():
             self.log.debug("git.identity_skip", reason="no_repository")
             return
 
-        repo_dir = repo_dirs[0].parent
+        repo_dir = self.repo_path
 
         try:
             subprocess.run(

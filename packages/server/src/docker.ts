@@ -53,7 +53,7 @@ export class DockerManager {
     worktreePath: string;
     serverPort: number;
     env?: Record<string, string>;
-  }): Promise<{ containerId: string }> {
+  }): Promise<{ containerId: string; devPort: number }> {
     const { sessionId, worktreePath, serverPort, env = {} } = options;
     const containerName = `ba-session-${sessionId}`;
 
@@ -62,7 +62,11 @@ export class DockerManager {
       const existing = this.docker.getContainer(containerName);
       const info = await existing.inspect();
       if (info.State.Running) {
-        return { containerId: info.Id };
+        // Extract DEV_PORT from the existing container's env
+        const envArr: string[] = info.Config.Env || [];
+        const devPortEntry = envArr.find((e: string) => e.startsWith("DEV_PORT="));
+        const existingDevPort = devPortEntry ? parseInt(devPortEntry.split("=")[1], 10) : 0;
+        return { containerId: info.Id, devPort: existingDevPort };
       }
       // Remove stopped container
       await existing.remove({ force: true });
@@ -126,11 +130,17 @@ export class DockerManager {
       Image: IMAGE_NAME,
       Env: containerEnv,
       WorkingDir: "/workspace",
+      ExposedPorts: {
+        [`${devPort}/tcp`]: {},
+      },
       HostConfig: {
         Binds: binds,
-        // Use host networking for simplicity (macOS Docker Desktop
-        // automatically routes host.docker.internal)
+        // Bridge networking with host.docker.internal for container→host communication
         NetworkMode: "bridge",
+        // Map the dev server port so it's accessible from the host
+        PortBindings: {
+          [`${devPort}/tcp`]: [{ HostPort: String(devPort) }],
+        },
         // Limit resources for safety
         Memory: 4 * 1024 * 1024 * 1024, // 4GB
         NanoCpus: 2 * 1e9, // 2 CPUs
@@ -143,9 +153,11 @@ export class DockerManager {
     });
 
     await container.start();
-    console.log(`[docker] Started container ${containerName} (${container.id.slice(0, 12)})`);
+    console.log(
+      `[docker] Started container ${containerName} (${container.id.slice(0, 12)}) dev port: ${devPort}`
+    );
 
-    return { containerId: container.id };
+    return { containerId: container.id, devPort };
   }
 
   /**
